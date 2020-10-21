@@ -15,7 +15,8 @@
     "@mikro-orm/core": "^4.2.1",
     "@mikro-orm/migrations": "^4.2.1",
     "@mikro-orm/postgresql": "^4.2.1",
-    "pg": "^8.4.1"
+    "pg": "^8.4.1",
+    "ts-node": "^9.0.0"
   },
   "devDependencies": {
     "@types/node": "^14.14.0",
