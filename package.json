@@ -1,7 +1,7 @@
 {
-  "name": "boards-server",
+  "name": "klatch-server",
   "version": "1.0.0",
-  "description": "server for boards app",
+  "description": "server for Klatch app",
   "main": "index.js",
   "author": "amarjupalli",
   "license": "MIT",

@@ -4,7 +4,7 @@ import path from "path";
 import { Post } from "./entities/Post";
 
 const mikroOrmConfig = {
-  dbName: "boards",
+  dbName: "klatch",
   debug: true,
   entities: [Post],
   migrations: {
