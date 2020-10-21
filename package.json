@@ -1,0 +1,19 @@
+{
+  "name": "boards-server",
+  "version": "1.0.0",
+  "description": "server for boards app",
+  "main": "index.js",
+  "author": "amarjupalli",
+  "license": "MIT",
+  "scripts": {
+    "dev": "nodemon dist/index.js",
+    "watch": "tsc -w",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^14.14.0",
+    "nodemon": "^2.0.6",
+    "typescript": "^4.0.3"
+  }
+}
