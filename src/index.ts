@@ -5,6 +5,7 @@ import express from "express";
 import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql";
 import { PostResolver } from "./resolvers/post";
+import { UserResolver } from "./resolvers/user";
 
 const PORT = process.env.PORT || 9000;
 
@@ -13,7 +14,7 @@ async function main() {
   await orm.getMigrator().up(); // run pre migrations
 
   const schema = await buildSchema({
-    resolvers: [PostResolver],
+    resolvers: [PostResolver, UserResolver],
     validate: false,
   });
 
