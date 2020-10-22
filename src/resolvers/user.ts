@@ -6,6 +6,7 @@ import {
   InputType,
   Mutation,
   ObjectType,
+  Query,
   Resolver,
 } from "type-graphql";
 import { User } from "../entities/User";
@@ -43,7 +44,7 @@ export class UserResolver {
   @Mutation(() => UserResponse)
   async register(
     @Arg("options", () => UsernamePasswordInput) options: UsernamePasswordInput,
-    @Ctx() { em }: ORMContext
+    @Ctx() { em, req }: ORMContext
   ): Promise<UserResponse> {
     if (options.username.length <= 2) {
       return {
@@ -51,6 +52,17 @@ export class UserResolver {
           {
             field: "username",
             errorMessage: "username has to be 2 or more characters",
+          },
+        ],
+      };
+    }
+
+    if (options.password.length <= 2) {
+      return {
+        errors: [
+          {
+            field: "password",
+            errorMessage: "Password has to be 2 or more characters",
           },
         ],
       };
@@ -75,13 +87,14 @@ export class UserResolver {
     });
 
     await em.persistAndFlush(user);
+    req.session!.userId = user.id;
     return { user };
   }
 
   @Mutation(() => UserResponse)
   async login(
     @Arg("options", () => UsernamePasswordInput) options: UsernamePasswordInput,
-    @Ctx() { em }: ORMContext
+    @Ctx() { em, req }: ORMContext
   ): Promise<UserResponse> {
     const user = await em.findOne(User, { username: options.username });
     if (!user) {
@@ -106,6 +119,18 @@ export class UserResolver {
         ],
       };
     }
+
+    req.session!.userId = user.id;
     return { user };
+  }
+
+  @Query(() => User, { nullable: true })
+  async me(@Ctx() { req, em }: ORMContext) {
+    if (!req.session!.userId) {
+      return null;
+    }
+
+    const user = await em.findOne(User, { id: req.session!.userId });
+    return user;
   }
 }
