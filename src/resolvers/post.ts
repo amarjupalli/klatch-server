@@ -1,10 +1,6 @@
-import { EntityManager, IDatabaseDriver, Connection } from "@mikro-orm/core";
-import { Post } from "../entities/Post";
 import { Arg, Ctx, Int, Mutation, Query, Resolver } from "type-graphql";
-
-type ORMContext = {
-  em: EntityManager<any> & EntityManager<IDatabaseDriver<Connection>>;
-};
+import { Post } from "../entities/Post";
+import { ORMContext } from "./types";
 
 @Resolver()
 export class PostResolver {
