@@ -133,4 +133,12 @@ export class UserResolver {
     const user = await em.findOne(User, { id: req.session!.userId });
     return user;
   }
+
+  @Mutation(() => Boolean)
+  async logout(@Ctx() { req, res }: ORMContext) {
+    return new Promise((resolve) => {
+      res.clearCookie("qid");
+      req.session!.destroy((err) => (err ? resolve(false) : resolve(true)));
+    });
+  }
 }
