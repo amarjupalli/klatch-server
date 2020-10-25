@@ -15,6 +15,9 @@ import { ORMContext } from "./types";
 @InputType()
 class UsernamePasswordInput {
   @Field()
+  email: string;
+
+  @Field()
   username: string;
 
   @Field()
@@ -57,6 +60,17 @@ export class UserResolver {
       };
     }
 
+    if (options.email.length <= 2 || !options.email.includes("@")) {
+      return {
+        errors: [
+          {
+            field: "email",
+            errorMessage: "Email is in invalid format.",
+          },
+        ],
+      };
+    }
+
     if (options.password.length <= 2) {
       return {
         errors: [
@@ -83,6 +97,7 @@ export class UserResolver {
     const hashedPassword = await argon2.hash(options.password);
     const user = em.create(User, {
       username: options.username,
+      email: options.email,
       password: hashedPassword,
     });
 
@@ -93,10 +108,16 @@ export class UserResolver {
 
   @Mutation(() => UserResponse)
   async login(
-    @Arg("options", () => UsernamePasswordInput) options: UsernamePasswordInput,
+    @Arg("options") usernameOrEmail: string,
+    @Arg("options") password: string,
     @Ctx() { em, req }: ORMContext
   ): Promise<UserResponse> {
-    const user = await em.findOne(User, { username: options.username });
+    const isEmail = usernameOrEmail.includes("@");
+
+    const user = await em.findOne(User, {
+      [isEmail ? "email" : "username"]: usernameOrEmail,
+    });
+
     if (!user) {
       return {
         errors: [
@@ -108,7 +129,7 @@ export class UserResolver {
       };
     }
 
-    const valid = await argon2.verify(user.password, options.password); // order of arguments is important
+    const valid = await argon2.verify(user.password, password); // order of arguments is important
     if (!valid) {
       return {
         errors: [
