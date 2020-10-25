@@ -53,7 +53,7 @@ export class UserResolver {
       return {
         errors: [
           {
-            field: "username",
+            field: "usernameOrEmail",
             errorMessage: "username has to be 2 or more characters",
           },
         ],
@@ -87,7 +87,7 @@ export class UserResolver {
       return {
         errors: [
           {
-            field: "username",
+            field: "usernameOrEmail",
             errorMessage: "Username already exists",
           },
         ],
@@ -108,8 +108,8 @@ export class UserResolver {
 
   @Mutation(() => UserResponse)
   async login(
-    @Arg("options") usernameOrEmail: string,
-    @Arg("options") password: string,
+    @Arg("usernameOrEmail") usernameOrEmail: string,
+    @Arg("password") password: string,
     @Ctx() { em, req }: ORMContext
   ): Promise<UserResponse> {
     const isEmail = usernameOrEmail.includes("@");
@@ -122,8 +122,8 @@ export class UserResolver {
       return {
         errors: [
           {
-            field: "username",
-            errorMessage: "username is invalid",
+            field: "usernameOrEmail",
+            errorMessage: `${isEmail ? "email" : "username"} is invalid`,
           },
         ],
       };
