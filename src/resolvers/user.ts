@@ -1,4 +1,5 @@
 import argon2 from "argon2";
+import { sendEmail } from "../utils/sendEmail";
 import {
   Arg,
   Ctx,
@@ -9,6 +10,7 @@ import {
   Query,
   Resolver,
 } from "type-graphql";
+import { v4 } from "uuid";
 import { User } from "../entities/User";
 import { ORMContext } from "./types";
 
@@ -161,5 +163,81 @@ export class UserResolver {
       res.clearCookie("qid");
       req.session!.destroy((err) => (err ? resolve(false) : resolve(true)));
     });
+  }
+
+  @Mutation(() => Boolean)
+  async forgetPassword(
+    @Arg("email") email: string,
+    @Ctx() { em, redis }: ORMContext
+  ) {
+    const user = await em.findOne(User, { email });
+    if (!user) {
+      return true;
+    }
+    const token = v4();
+    await redis.set(
+      `jicama-slaw${token}`,
+      user.id,
+      "ex",
+      1000 * 60 * 60 * 24 * 3
+    );
+    await sendEmail(
+      email,
+      `<a href="http://localhost:3000/change-password/${token}">Click here to reset password</a>`
+    );
+
+    return true;
+  }
+
+  @Mutation(() => UserResponse)
+  async changePassword(
+    @Arg("token") token: string,
+    @Arg("newPassword") newPassword: string,
+    @Ctx() { em, redis, req }: ORMContext
+  ): Promise<UserResponse> {
+    if (newPassword.length <= 2) {
+      return {
+        errors: [
+          {
+            field: "newPassword",
+            errorMessage: "Password has to be 2 or more characters",
+          },
+        ],
+      };
+    }
+
+    const key = `jicama-slaw${token}`;
+    const userId = await redis.get(key);
+    if (!userId) {
+      return {
+        errors: [
+          {
+            field: "token",
+            errorMessage: "token expired.",
+          },
+        ],
+      };
+    }
+
+    const user = await em.findOne(User, { id: parseInt(userId) });
+    if (!user) {
+      return {
+        errors: [
+          {
+            field: "token",
+            errorMessage:
+              "User not found - deleted their existence and on their way to Mars 🚀",
+          },
+        ],
+      };
+    }
+
+    user.password = await argon2.hash(newPassword);
+    await em.persistAndFlush(user);
+    // remove/invalidate the token after single use
+    await redis.del(key);
+    //log the user in after changing password
+    req.session!.userId = user.id;
+    return { user };
   }
 }
