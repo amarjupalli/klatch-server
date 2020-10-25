@@ -10,7 +10,7 @@ import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql";
 import { PostResolver } from "./resolvers/post";
 import { UserResolver } from "./resolvers/user";
-import SECRETS from "./config";
+import { SECRETS } from "./config";
 
 const PORT = process.env.PORT || 9000;
 
