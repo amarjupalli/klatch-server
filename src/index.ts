@@ -1,6 +1,6 @@
 import { MikroORM } from "@mikro-orm/core";
 import "reflect-metadata";
-import redis from "redis";
+import Redis from "ioredis";
 import cors from "cors";
 import session from "express-session";
 import connectRedis from "connect-redis";
@@ -25,7 +25,7 @@ async function main() {
 
   const app = express();
   const RedisStore = connectRedis(session);
-  const redisClient = redis.createClient();
+  const redis = new Redis();
 
   app.use(
     cors({
@@ -38,7 +38,7 @@ async function main() {
     session({
       name: "qid",
       store: new RedisStore({
-        client: redisClient,
+        client: redis,
         disableTouch: false,
       }),
       cookie: {
@@ -55,7 +55,12 @@ async function main() {
 
   const apolloServer = new ApolloServer({
     schema,
-    context: ({ req, res }) => ({ em: orm.em, req, res }),
+    context: ({ req, res }) => ({
+      em: orm.em,
+      req,
+      res,
+      redis,
+    }),
   });
 
   apolloServer.applyMiddleware({ app, cors: false });
