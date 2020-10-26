@@ -1,22 +1,28 @@
-import { MikroORM } from "@mikro-orm/core";
 import "reflect-metadata";
+import { createConnection } from "typeorm";
 import Redis from "ioredis";
 import cors from "cors";
 import session from "express-session";
 import connectRedis from "connect-redis";
-import mikroOrmConfig from "./mikro-orm.config";
 import express from "express";
 import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql";
 import { PostResolver } from "./resolvers/post";
 import { UserResolver } from "./resolvers/user";
 import { SECRETS } from "./config";
+import { User } from "./entities/User";
+import { Post } from "./entities/Post";
 
 const PORT = process.env.PORT || 9000;
 
 async function main() {
-  const orm = await MikroORM.init(mikroOrmConfig);
-  await orm.getMigrator().up(); // run pre migrations
+  await createConnection({
+    database: "klatch",
+    type: "postgres",
+    logging: true,
+    synchronize: true,
+    entities: [Post, User],
+  });
 
   const schema = await buildSchema({
     resolvers: [PostResolver, UserResolver],
@@ -56,7 +62,6 @@ async function main() {
   const apolloServer = new ApolloServer({
     schema,
     context: ({ req, res }) => ({
-      em: orm.em,
       req,
       res,
       redis,
