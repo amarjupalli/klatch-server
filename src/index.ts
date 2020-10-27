@@ -5,6 +5,7 @@ import cors from "cors";
 import session from "express-session";
 import connectRedis from "connect-redis";
 import express from "express";
+import path from "path";
 import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql";
 import { PostResolver } from "./resolvers/post";
@@ -16,13 +17,15 @@ import { Post } from "./entities/Post";
 const PORT = process.env.PORT || 9000;
 
 async function main() {
-  await createConnection({
+  const connection = await createConnection({
     database: "klatch",
     type: "postgres",
     logging: true,
     synchronize: true,
     entities: [Post, User],
+    migrations: [path.join(__dirname, "./migrations/*")],
   });
+  // await connection.runMigrations();
 
   const schema = await buildSchema({
     resolvers: [PostResolver, UserResolver],
