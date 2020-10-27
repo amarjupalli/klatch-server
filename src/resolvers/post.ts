@@ -2,13 +2,16 @@ import {
   Arg,
   Ctx,
   Field,
+  FieldResolver,
   InputType,
   Int,
   Mutation,
   Query,
   Resolver,
+  Root,
   UseMiddleware,
 } from "type-graphql";
+import { getConnection } from "typeorm";
 import { isAuthenticated } from "../middleware/isAuthenticated";
 import { Post } from "../entities/Post";
 import { ORMContext } from "./types";
@@ -22,11 +25,30 @@ class PostInput {
   text: string;
 }
 
-@Resolver()
+@Resolver(Post)
 export class PostResolver {
+  @FieldResolver(() => String)
+  textSnippet(@Root() { text }: Post) {
+    return text.slice(0, 50);
+  }
+
   @Query(() => [Post])
-  posts(): Promise<Post[]> {
-    return Post.find();
+  posts(
+    @Arg("limit", () => Int) limit: number,
+    @Arg("cursor", () => String, { nullable: true }) cursor: string | null
+  ): Promise<Post[]> {
+    // Note: not wrapping the column name in "" causes problems with postgres below
+    const qb = getConnection()
+      .getRepository(Post)
+      .createQueryBuilder("post") //alias
+      .orderBy('"createdAt"', "DESC")
+      .take(Math.min(50, limit));
+
+    if (cursor) {
+      qb.where('"createdAt" < :cursor', { cursor });
+    }
+
+    return qb.getMany();
   }
 
   @Query(() => Post, { nullable: true })
