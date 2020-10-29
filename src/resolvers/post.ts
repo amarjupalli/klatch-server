@@ -49,18 +49,30 @@ export class PostResolver {
   ): Promise<PaginatedPosts> {
     const noOfPostsToReturn = Math.min(50, limit);
     const noOfPostsToFetch = noOfPostsToReturn + 1;
-    // Note: not wrapping the column name in "" causes problems with postgres below
-    const qb = getConnection()
-      .getRepository(Post)
-      .createQueryBuilder("post") //alias
-      .orderBy('"createdAt"', "DESC")
-      .take(noOfPostsToFetch);
 
+    // Note: Not wrapping the column name in "" causes problems with postgres below
+
+    const sql = `
+      select p.*,
+      json_build_object(
+        'id', u.id,
+        'username', u.username,
+        'email', u.email,
+        'createdAt', u."createdAt",
+        'updatedAt', u."updatedAt"
+      ) creator
+      from post p
+      inner join public.user u on u.id = p."creatorId"
+      ${cursor ? `where p."createdAt" < $2` : ""}
+      order by p."createdAt" DESC
+      limit $1
+    `;
+    const replacements: any[] = [noOfPostsToFetch];
     if (cursor) {
-      qb.where('"createdAt" < :cursor', { cursor });
+      replacements.push(cursor);
     }
 
-    const posts = await qb.getMany();
+    const posts = await getConnection().query(sql, replacements);
 
     return {
       posts: posts.slice(0, noOfPostsToReturn),
