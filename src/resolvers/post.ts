@@ -50,8 +50,11 @@ export class PostResolver {
     const noOfPostsToReturn = Math.min(50, limit);
     const noOfPostsToFetch = noOfPostsToReturn + 1;
 
-    // Note: Not wrapping the column name in "" causes problems with postgres below
+    const replacements: any[] = cursor
+      ? [noOfPostsToFetch, cursor]
+      : [noOfPostsToFetch];
 
+    // Note: Not wrapping the column name in "" causes problems with postgres below
     const sql = `
       select p.*,
       json_build_object(
@@ -67,10 +70,6 @@ export class PostResolver {
       order by p."createdAt" DESC
       limit $1
     `;
-    const replacements: any[] = [noOfPostsToFetch];
-    if (cursor) {
-      replacements.push(cursor);
-    }
 
     const posts = await getConnection().query(sql, replacements);
 
