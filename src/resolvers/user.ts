@@ -5,11 +5,13 @@ import {
   Arg,
   Ctx,
   Field,
+  FieldResolver,
   InputType,
   Mutation,
   ObjectType,
   Query,
   Resolver,
+  Root,
 } from "type-graphql";
 import { v4 } from "uuid";
 import { User } from "../entities/User";
@@ -44,8 +46,14 @@ class UserResponse {
   errors?: FieldError[];
 }
 
-@Resolver()
+@Resolver(User)
 export class UserResolver {
+  @FieldResolver(() => String)
+  email(@Root() { id, email }: User, @Ctx() { req }: ORMContext) {
+    // return only the email of the currently logged in user.
+    return req.session!.userId === id ? email : "";
+  }
+
   @Mutation(() => UserResponse)
   async register(
     @Arg("options", () => UsernamePasswordInput) options: UsernamePasswordInput,
