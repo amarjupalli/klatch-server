@@ -25,7 +25,7 @@ async function main() {
     entities: [Post, User],
     migrations: [path.join(__dirname, "./migrations/*")],
   });
-  // await connection.runMigrations();
+  await connection.runMigrations();
 
   const schema = await buildSchema({
     resolvers: [PostResolver, UserResolver],
