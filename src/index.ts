@@ -13,6 +13,7 @@ import { UserResolver } from "./resolvers/user";
 import { SECRETS } from "./config";
 import { User } from "./entities/User";
 import { Post } from "./entities/Post";
+import { Updoot } from "./entities/Updoot";
 
 const PORT = process.env.PORT || 9000;
 
@@ -22,7 +23,7 @@ async function main() {
     type: "postgres",
     logging: true,
     synchronize: true,
-    entities: [Post, User],
+    entities: [Post, User, Updoot],
     migrations: [path.join(__dirname, "./migrations/*")],
   });
   await connection.runMigrations();
