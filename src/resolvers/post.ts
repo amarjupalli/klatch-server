@@ -16,6 +16,7 @@ import { getConnection } from "typeorm";
 import { isAuthenticated } from "../middleware/isAuthenticated";
 import { Post } from "../entities/Post";
 import { ORMContext } from "./types";
+import { Updoot } from "../entities/Updoot";
 
 @InputType()
 class PostInput {
@@ -40,6 +41,34 @@ export class PostResolver {
   @FieldResolver(() => String)
   textSnippet(@Root() { text }: Post) {
     return text.slice(0, 50);
+  }
+
+  @Mutation(() => Boolean)
+  @UseMiddleware(isAuthenticated)
+  async voting(
+    @Arg("postId", () => Int) postId: number,
+    @Arg("value", () => Int) value: number,
+    @Ctx() { req }: ORMContext
+  ) {
+    const updoot = value !== -1;
+    const { userId } = req.session!;
+    const valueToInsert = updoot ? 1 : -1;
+
+    try {
+      const query = `update post set points = points + $1 where id = $2`;
+      await Promise.all([
+        await Updoot.insert({
+          userId,
+          postId,
+          value: valueToInsert,
+        }),
+        await getConnection().query(query, [valueToInsert, postId]),
+      ]);
+      return true;
+    } catch (error) {
+      console.error(`Could not update the post with a vote: ${error}`);
+      return false;
+    }
   }
 
   @Query(() => PaginatedPosts)
