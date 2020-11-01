@@ -54,6 +54,33 @@ export class PostResolver {
     const { userId } = req.session!;
     const valueToInsert = updoot ? 1 : -1;
 
+    const existingVote = await Updoot.findOne({ where: { postId, userId } });
+
+    // code below for updating an existing vote
+    if (existingVote && existingVote.value !== valueToInsert) {
+      try {
+        const queryForUpdoot = `update updoot set value = $1 where "postId" = $2 and "userId" = $3`;
+        const queryForPost = `update post set points = points + $1 where id = $2`;
+
+        await Promise.all([
+          await getConnection().query(queryForUpdoot, [
+            valueToInsert, // $1
+            postId, // $2
+            userId, // $3
+          ]),
+          await getConnection().query(queryForPost, [
+            valueToInsert * 2, // $1
+            postId, // $2
+          ]),
+        ]);
+        return true;
+      } catch (error) {
+        console.error(`Could not update the vote for post ${postId}: ${error}`);
+        return false;
+      }
+    }
+
+    // code below for inserting a new vote
     try {
       const query = `update post set points = points + $1 where id = $2`;
       await Promise.all([
@@ -74,15 +101,23 @@ export class PostResolver {
   @Query(() => PaginatedPosts)
   async posts(
     @Arg("limit", () => Int) limit: number,
-    @Arg("cursor", () => String, { nullable: true }) cursor: string | null
+    @Arg("cursor", () => String, { nullable: true }) cursor: string | null,
+    @Ctx() { req }: ORMContext
   ): Promise<PaginatedPosts> {
     const noOfPostsToReturn = Math.min(50, limit);
     const noOfPostsToFetch = noOfPostsToReturn + 1;
 
-    const replacements: any[] = cursor
-      ? [noOfPostsToFetch, cursor]
-      : [noOfPostsToFetch];
+    const replacements: any[] = [noOfPostsToFetch];
 
+    if (req.session!.userId) {
+      replacements.push(req.session!.userId);
+    }
+
+    let cursorIdx = 3;
+    if (cursor) {
+      replacements.push(cursor);
+      cursorIdx = replacements.length;
+    }
     // Note: Not wrapping the column name in "" causes problems with postgres below
     const sql = `
       select p.*,
@@ -92,16 +127,20 @@ export class PostResolver {
         'email', u.email,
         'createdAt', u."createdAt",
         'updatedAt', u."updatedAt"
-      ) creator
+        ) creator,
+      ${
+        req.session!.userId
+          ? '(select value from updoot where "userId" = $2 and "postId" = p.id) "voteStatus"'
+          : 'null as "voteStatus"'
+      }
       from post p
       inner join public.user u on u.id = p."creatorId"
-      ${cursor ? `where p."createdAt" < $2` : ""}
+      ${cursor ? `where p."createdAt" < $${cursorIdx}` : ""}
       order by p."createdAt" DESC
       limit $1
     `;
 
     const posts = await getConnection().query(sql, replacements);
-
     return {
       posts: posts.slice(0, noOfPostsToReturn),
       hasMore: posts.length === noOfPostsToFetch,
@@ -110,8 +149,29 @@ export class PostResolver {
 
   @Query(() => Post, { nullable: true })
   post(@Arg("id", () => Int) id: number): Promise<Post | undefined> {
-    return Post.findOne(id);
+    return Post.findOne(id, { relations: ["creator"] });
   }
+
+  // FIXME: voteStatus and vote on single post
+  // @Query(() => Post, { nullable: true })
+  // async post(
+  //   @Arg("id", () => Int) id: number,
+  //   @Ctx() { req }: ORMContext
+  // ): Promise<Post | undefined> {
+  //   const post = await Post.findOne(id, { relations: ["creator"] });
+  //   const { userId } = req.session!;
+  //   if (post) {
+  //     if (!userId) {
+  //       return post;
+  //     }
+  //     const sql = `select value from updoot where "userId" = ${userId} and "postId" = ${id}`;
+  //     const result = await getConnection().query(sql);
+  //     const voteStatus = result.length > 0 ? result[0].value : null;
+  //     post.voteStatus = voteStatus;
+  //     return post;
+  //   }
+  //   return undefined;
+  // }
 
   @Mutation(() => Post)
   @UseMiddleware(isAuthenticated)
