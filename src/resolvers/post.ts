@@ -186,28 +186,41 @@ export class PostResolver {
   }
 
   @Mutation(() => Post, { nullable: true })
+  @UseMiddleware(isAuthenticated)
   async updatePost(
     @Arg("id", () => Int) id: number,
-    @Arg("title", () => String, { nullable: true }) title: string
-  ): Promise<Post | null> {
+    @Arg("title", () => String) title: string,
+    @Arg("text", () => String) text: string,
+    @Ctx() { req }: ORMContext
+  ): Promise<Post | undefined> {
     const post = await Post.findOne(id);
     if (!post) {
-      return null;
+      return undefined;
     }
 
-    if (title) {
-      await Post.update({ id }, { title });
+    if (post.creatorId !== req.session?.userId) {
+      throw new Error("Unauthorized action");
     }
-    return post;
+
+    await Post.update({ id }, { title, text });
+    return await Post.findOne(id);
   }
 
   @Mutation(() => Boolean)
-  async deletePost(@Arg("id", () => Int) id: number): Promise<Boolean> {
-    try {
-      await Post.delete(id);
-      return true;
-    } catch (error) {
+  @UseMiddleware(isAuthenticated)
+  async deletePost(
+    @Arg("id", () => Int) id: number,
+    @Ctx() { req }: ORMContext
+  ): Promise<Boolean> {
+    const post = await Post.findOne(id);
+    if (!post) {
       return false;
     }
+    if (post.creatorId !== req.session?.userId) {
+      throw new Error("Unauthorized action");
+    }
+
+    await Promise.all([Updoot.delete({ postId: id }), Post.delete({ id })]);
+    return true;
   }
 }
